@@ -302,6 +302,8 @@
                     </td>
                 `;
                 fileStatusList.appendChild(statusItem);
+                // Scroll to the bottom when a new file is added
+                scrollStatusListToBottom();
 
                 try {
                     // Read the file
@@ -377,6 +379,9 @@
                     successfulFiles++;
                     successCount.textContent = successfulFiles;
 
+                    // Scroll to the bottom of the status list
+                    scrollStatusListToBottom();
+
                 } catch (error) {
                     console.error(`Error processing ${file.name}:`, error);
 
@@ -390,6 +395,9 @@
 
                     failedFiles++;
                     failCount.textContent = failedFiles;
+
+                    // Scroll to the bottom of the status list
+                    scrollStatusListToBottom();
                 }
 
                 // Update progress
@@ -441,6 +449,17 @@
                     reader.onerror = reject;
                     reader.readAsArrayBuffer(file);
                 });
+            }
+
+            function scrollStatusListToBottom() {
+                const container = document.querySelector('.max-h-60.overflow-y-auto');
+                if (container) {
+                    // Use smooth scrolling behavior for better UX
+                    container.scrollTo({
+                        top: container.scrollHeight,
+                        behavior: 'smooth'
+                    });
+                }
             }
         });
     </script>
