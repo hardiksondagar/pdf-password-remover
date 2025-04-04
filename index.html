@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>PDF Password Remover - Remove PDF Password Online for Free</title>
+    <meta name="description" content="Free online tool to remove passwords from PDF files directly in your browser. No server upload, secure, and private.">
+    <meta name="keywords" content="PDF password remover, unlock PDF, remove PDF password, PDF decryption, browser PDF tool, client-side PDF unlock">
+    <meta name="author" content="PDF Password Remover">
+    <meta name="robots" content="index, follow">
+
+    <!-- Performance optimization -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <meta name="theme-color" content="#3b82f6">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://yoursite.com/">
+    <meta property="og:title" content="PDF Password Remover - Remove PDF Password Online for Free">
+    <meta property="og:description" content="Free online tool to remove passwords from PDF files directly in your browser. No server upload, secure, and private.">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="PDF Password Remover - Remove PDF Password Online for Free">
+    <meta name="twitter:description" content="Free online tool to remove passwords from PDF files directly in your browser. No server upload, secure, and private.">
+
+    <!-- Canonical URL -->
+    <meta name="canonical" content="https://yoursite.com/">
+
+    <!-- Structured Data for Rich Snippets -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "PDF Password Remover",
+      "url": "https://yoursite.com/",
+      "description": "Free online tool to remove passwords from PDF files directly in your browser. No server upload, secure, and private.",
+      "applicationCategory": "Utility",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "operatingSystem": "Any"
+    }
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto py-8 px-4">
+        <div class="max-w-3xl mx-auto">
+            <header class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">PDF Password Remover</h1>
+                <p class="text-gray-600">Remove passwords from PDF files directly in your browser - no server processing required.</p>
+            </header>
+
+            <main>
+                <section class="bg-white rounded-lg shadow-md p-6 mb-6" aria-labelledby="upload-section">
+                    <h2 id="upload-section" class="sr-only">Upload and Process PDFs</h2>
+                    <div class="mb-4">
+                        <label for="pdfFile" class="block text-sm font-medium text-gray-700 mb-1">Select PDF Files</label>
+                        <input type="file" id="pdfFile" accept=".pdf" multiple class="block w-full text-sm text-gray-500
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded-md file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-blue-50 file:text-blue-700
+                            hover:file:bg-blue-100" />
+                    </div>
+                    <div class="mb-4">
+                        <label for="password" class="block text-sm font-medium text-gray-700 mb-1">PDF Password</label>
+                        <input type="password" id="password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
+                    </div>
+                    <button id="processBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
+                        Remove Password
+                    </button>
+
+                    <div id="progressContainer" class="mt-4 hidden">
+                        <p class="text-sm text-gray-600 mb-2">Processing PDFs... This may take a moment for large files.</p>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div id="progressBar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                        <div id="progressStatus" class="text-xs text-gray-500 mt-1 text-right">0%</div>
+                    </div>
+
+                    <div id="fileStatusContainer" class="mt-4 hidden">
+                        <h3 class="font-medium text-gray-700 mb-2">Processing Status</h3>
+                        <div class="overflow-hidden border border-gray-200 rounded-lg shadow-sm">
+                            <div class="max-h-60 overflow-y-auto">
+                                <table class="min-w-full divide-y divide-gray-200 table-fixed">
+                                    <thead class="bg-gray-50 sticky top-0 z-10">
+                                        <tr>
+                                            <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">#</th>
+                                            <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Filename</th>
+                                            <th scope="col" class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="fileStatusList" class="bg-white divide-y divide-gray-200 text-sm">
+                                        <!-- File status items will be inserted here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="mt-3 flex items-center justify-between">
+                            <div class="text-sm font-medium">
+                                Total: <span id="totalCount" class="text-gray-700">0</span> files
+                            </div>
+                            <div class="text-sm">
+                                <span class="inline-flex items-center">
+                                    <span class="w-3 h-3 rounded-full bg-green-500 mr-1"></span>
+                                    <span id="successCount" class="text-green-600 mr-3">0</span>
+                                </span>
+                                <span class="inline-flex items-center">
+                                    <span class="w-3 h-3 rounded-full bg-red-500 mr-1"></span>
+                                    <span id="failCount" class="text-red-600">0</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <a id="downloadBtn" href="#" download="unlocked_pdfs.zip" class="hidden mt-4 inline-block w-full text-center bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
+                        Download All as ZIP
+                    </a>
+
+                    <div id="status" class="hidden mt-4 p-3 rounded-md"></div>
+                </section>
+
+                <section class="bg-white rounded-lg shadow-md p-6" aria-labelledby="how-it-works">
+                    <h2 id="how-it-works" class="text-lg font-medium text-gray-900 mb-2">How it works</h2>
+                    <p class="text-gray-600 mb-2">This tool processes your PDF entirely in your browser:</p>
+                    <ul class="list-disc pl-5 text-gray-600 space-y-1">
+                        <li>Your PDFs are never uploaded to any server</li>
+                        <li>Your password stays private and is only used locally</li>
+                        <li>The unlocked PDFs are generated directly in your browser</li>
+                        <li>Results are packaged as a ZIP file for easy download</li>
+                    </ul>
+                </section>
+
+                <section class="bg-white rounded-lg shadow-md p-6 mt-6" aria-labelledby="features">
+                    <h2 id="features" class="text-lg font-medium text-gray-900 mb-2">Features</h2>
+                    <ul class="list-disc pl-5 text-gray-600 space-y-1">
+                        <li>100% free to use, no restrictions</li>
+                        <li>Works with all PDF versions</li>
+                        <li>Process multiple files in one go</li>
+                        <li>Private and secure - files never leave your computer</li>
+                        <li>No registration or email required</li>
+                    </ul>
+                </section>
+
+                <section class="bg-white rounded-lg shadow-md p-6 mt-6" aria-labelledby="faq-section">
+                    <h2 id="faq-section" class="text-lg font-medium text-gray-900 mb-4">Frequently Asked Questions</h2>
+
+                    <div class="space-y-4">
+                        <div>
+                            <h3 class="font-medium text-gray-800">Is this PDF password remover free?</h3>
+                            <p class="text-gray-600 mt-1">Yes, our PDF password remover is completely free to use. There are no hidden fees, subscription requirements, or limits on the number of files you can process.</p>
+                        </div>
+
+                        <div>
+                            <h3 class="font-medium text-gray-800">How does online PDF password removal work?</h3>
+                            <p class="text-gray-600 mt-1">Our tool uses JavaScript libraries that run entirely in your web browser to decrypt your PDF files using the password you provide. After decryption, a new PDF without password protection is created and offered for download.</p>
+                        </div>
+
+                        <div>
+                            <h3 class="font-medium text-gray-800">Is it secure to remove PDF passwords online?</h3>
+                            <p class="text-gray-600 mt-1">Yes, our tool processes everything locally in your browser. Your PDF files and passwords are never uploaded to any server, ensuring complete privacy and security of your sensitive documents.</p>
+                        </div>
+
+                        <div>
+                            <h3 class="font-medium text-gray-800">What types of PDF password protection can be removed?</h3>
+                            <p class="text-gray-600 mt-1">This tool can remove user passwords (also known as open passwords) from PDFs. You need to know the correct password. It cannot crack or bypass unknown passwords.</p>
+                        </div>
+
+                        <div>
+                            <h3 class="font-medium text-gray-800">Can I remove passwords from multiple PDFs at once?</h3>
+                            <p class="text-gray-600 mt-1">Yes, you can select multiple PDF files and process them all at once. The tool will attempt to use the same password for all files and provide you with a ZIP archive containing all the successfully unlocked PDFs.</p>
+                        </div>
+                    </div>
+                </section>
+            </main>
+
+            <footer class="mt-8 text-center text-sm text-gray-500">
+                <p>© 2025 PDF Password Remover. All processing happens in your browser.</p>
+                <p class="mt-1">This tool is intended for legitimate use on documents you own.</p>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set up PDF.js worker
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.worker.min.js';
+
+            const pdfFileInput = document.getElementById('pdfFile');
+            const passwordInput = document.getElementById('password');
+            const processBtn = document.getElementById('processBtn');
+            const statusDiv = document.getElementById('status');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const progressStatus = document.getElementById('progressStatus');
+            const fileStatusContainer = document.getElementById('fileStatusContainer');
+            const fileStatusList = document.getElementById('fileStatusList');
+            const successCount = document.getElementById('successCount');
+            const failCount = document.getElementById('failCount');
+            const totalCount = document.getElementById('totalCount');
+
+            // Variables to track processing
+            let totalFiles = 0;
+            let processedFiles = 0;
+            let successfulFiles = 0;
+            let failedFiles = 0;
+            let zip = null;
+
+            processBtn.addEventListener('click', async function() {
+                const files = pdfFileInput.files;
+                if (!files || files.length === 0) {
+                    showStatus('Please select at least one PDF file.', 'bg-red-100 text-red-700');
+                    return;
+                }
+
+                const password = passwordInput.value;
+                if (!password) {
+                    showStatus('Please enter a password.', 'bg-red-100 text-red-700');
+                    return;
+                }
+
+                // Reset counters and status
+                totalFiles = files.length;
+                processedFiles = 0;
+                successfulFiles = 0;
+                failedFiles = 0;
+                fileStatusList.innerHTML = '';
+                successCount.textContent = '0';
+                failCount.textContent = '0';
+                totalCount.textContent = totalFiles;
+
+                // Create new ZIP file
+                zip = new JSZip();
+
+                // Show processing UI
+                showStatus(`Processing ${totalFiles} PDF files...`, 'bg-blue-100 text-blue-700');
+                progressContainer.classList.remove('hidden');
+                fileStatusContainer.classList.remove('hidden');
+                downloadBtn.classList.add('hidden');
+                processBtn.disabled = true;
+                processBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                updateProgress(0);
+
+                // Process each file
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    await processPdfFile(file, password, i + 1);
+                }
+
+                // When all files are processed
+                if (successfulFiles > 0) {
+                    // Generate the ZIP file
+                    const zipBlob = await zip.generateAsync({type: 'blob'});
+                    const url = URL.createObjectURL(zipBlob);
+                    downloadBtn.href = url;
+                    downloadBtn.classList.remove('hidden');
+
+                    showStatus(`Processing complete. ${successfulFiles} of ${totalFiles} files unlocked successfully.`,
+                        successfulFiles === totalFiles ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700');
+                } else {
+                    showStatus('Failed to unlock any PDF files. Please check the password and try again.', 'bg-red-100 text-red-700');
+                }
+
+                // Hide the progress container when processing is complete
+                progressContainer.classList.add('hidden');
+
+                // Re-enable the process button
+                processBtn.disabled = false;
+                processBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            });
+
+            async function processPdfFile(file, password, fileIndex) {
+                // Add file to status list
+                const statusItem = document.createElement('tr');
+                statusItem.className = 'hover:bg-gray-50';
+                statusItem.innerHTML = `
+                    <td class="px-4 py-3 whitespace-nowrap text-gray-500">${fileIndex}</td>
+                    <td class="px-4 py-3">
+                        <div class="text-sm text-gray-900 truncate">${file.name}</div>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-right">
+                        <span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 inline-flex items-center">
+                            <svg class="animate-spin -ml-0.5 mr-1.5 h-3 w-3 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Processing
+                        </span>
+                    </td>
+                `;
+                fileStatusList.appendChild(statusItem);
+
+                try {
+                    // Read the file
+                    const arrayBuffer = await readFileAsArrayBuffer(file);
+
+                    // Load the PDF document with password
+                    const loadingTask = pdfjsLib.getDocument({
+                        data: arrayBuffer,
+                        password: password
+                    });
+
+                    // Update status to decrypting
+                    updateStatus(statusItem, 'Decrypting', 'blue');
+
+                    // Try to load the document with the password
+                    const pdfDoc = await loadingTask.promise;
+
+                    // Update status to creating unencrypted copy
+                    updateStatus(statusItem, 'Creating copy', 'blue');
+
+                    // Create a new PDF document without encryption
+                    const { PDFDocument } = PDFLib;
+                    const newPdfDoc = await PDFDocument.create();
+
+                    // Copy each page from the encrypted document
+                    const numPages = pdfDoc.numPages;
+
+                    for (let i = 0; i < numPages; i++) {
+                        const page = await pdfDoc.getPage(i + 1);
+                        const viewport = page.getViewport({ scale: 1.0 });
+
+                        // Create a new page with the same dimensions
+                        const newPage = newPdfDoc.addPage([viewport.width, viewport.height]);
+
+                        // Create a canvas to render the page
+                        const canvas = document.createElement('canvas');
+                        const context = canvas.getContext('2d');
+                        canvas.width = viewport.width;
+                        canvas.height = viewport.height;
+
+                        // Render the page to the canvas
+                        await page.render({
+                            canvasContext: context,
+                            viewport: viewport
+                        }).promise;
+
+                        // Get the image data from the canvas
+                        const imgData = canvas.toDataURL('image/png');
+
+                        // Embed the image in the new PDF
+                        const pngImage = await newPdfDoc.embedPng(imgData);
+                        const { width, height } = newPage.getSize();
+
+                        // Draw the image onto the page
+                        newPage.drawImage(pngImage, {
+                            x: 0,
+                            y: 0,
+                            width: width,
+                            height: height,
+                        });
+                    }
+
+                    // Save the PDF to a Uint8Array
+                    const pdfBytes = await newPdfDoc.save();
+
+                    // Add the unlocked PDF to the ZIP file
+                    const fileName = file.name.replace('.pdf', '') + '_unlocked.pdf';
+                    zip.file(fileName, pdfBytes);
+
+                    // Update the status item to show success
+                    updateStatus(statusItem, 'Success', 'green');
+
+                    successfulFiles++;
+                    successCount.textContent = successfulFiles;
+
+                } catch (error) {
+                    console.error(`Error processing ${file.name}:`, error);
+
+                    // Update the status item to show failure
+                    let errorMsg = 'Failed';
+                    if (error.message && error.message.includes('Invalid password')) {
+                        errorMsg = 'Wrong password';
+                    }
+
+                    updateStatus(statusItem, errorMsg, 'red');
+
+                    failedFiles++;
+                    failCount.textContent = failedFiles;
+                }
+
+                // Update progress
+                processedFiles++;
+                const progress = Math.round((processedFiles / totalFiles) * 100);
+                updateProgress(progress);
+            }
+
+            function updateStatus(row, status, color) {
+                const statusColors = {
+                    'blue': 'bg-blue-100 text-blue-800',
+                    'green': 'bg-green-100 text-green-800',
+                    'red': 'bg-red-100 text-red-800',
+                    'yellow': 'bg-yellow-100 text-yellow-800'
+                };
+
+                const statusCell = row.querySelector('td:last-child span');
+                statusCell.className = `px-2 py-1 text-xs font-medium rounded-full ${statusColors[color]} inline-flex items-center`;
+
+                // Remove spinner for completed states
+                if (color !== 'blue') {
+                    statusCell.innerHTML = status;
+                } else {
+                    statusCell.innerHTML = `
+                        <svg class="animate-spin -ml-0.5 mr-1.5 h-3 w-3 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        ${status}
+                    `;
+                }
+            }
+
+            function showStatus(message, className) {
+                statusDiv.textContent = message;
+                statusDiv.className = 'mt-4 p-3 rounded-md ' + className;
+                statusDiv.classList.remove('hidden');
+            }
+
+            function updateProgress(percent) {
+                progressBar.style.width = percent + '%';
+                progressStatus.textContent = `${percent}%`;
+            }
+
+            function readFileAsArrayBuffer(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(file);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
