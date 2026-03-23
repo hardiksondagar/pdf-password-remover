@@ -1,70 +1,53 @@
 # PDF Password Remover
 
-A browser-based application to remove passwords from PDF files entirely client-side, with no server processing required.
+A single-page web app that removes **open passwords** from PDFs entirely in the browser. Files and passwords never leave your device.
 
 ## Features
 
-- Remove password protection from PDF files
-- **Multiple file processing** - upload and process multiple PDFs at once
-- Process files entirely in the browser (no server upload)
-- Maintain visual appearance of the PDF
-- **Track status** of each file's processing success or failure
-- **ZIP download** for batch processing results
-- Modern UI with Tailwind CSS
-- Private and secure - your files never leave your computer
+- **True decryption** — Uses [QPDF](https://qpdf.sourceforge.io/) compiled to WebAssembly ([`@neslinesli93/qpdf-wasm`](https://www.npmjs.com/package/@neslinesli93/qpdf-wasm)), so the unlocked PDF keeps the original layout: selectable text, vector graphics, links, and forms where the PDF supports it.
+- **Batch processing** — Select multiple PDFs; the same password is tried for each file.
+- **Per-file status** — See success or failure for every file in a table.
+- **Smart download** — If **exactly one** file unlocks successfully, you get a **single PDF**. If **two or more** unlock, results are bundled in a **ZIP** (`unlocked_pdfs.zip`).
+- **Privacy** — No server upload; processing runs locally in your browser.
+- **UI** — [Tailwind CSS](https://tailwindcss.com/) (via CDN).
 
-## How it Works
+## How it works
 
-This application uses modern web technologies to process PDFs directly in your browser:
+1. Your PDF bytes are written into the WASM module’s virtual file system.
+2. QPDF runs with `--password=…` and `--decrypt`, producing an unencrypted PDF.
+3. **JSZip** packages multiple outputs when needed; otherwise a direct PDF blob is used for download.
 
-1. **PDF.js**: Mozilla's PDF rendering engine for decrypting the password-protected PDF
-2. **PDF-Lib**: For creating a new unencrypted PDF
-3. **JSZip**: For packaging multiple PDFs into a single download
-4. **Tailwind CSS**: For the responsive user interface
+Scripts are loaded from CDNs (Tailwind, qpdf-wasm, JSZip). The QPDF WebAssembly binary (~1.3 MB) is fetched on first use.
 
 ## Usage
 
-1. Open `index.html` in your web browser
-2. Select one or more password-protected PDF files
-3. Enter the PDF password (same password will be used for all files)
-4. Click "Remove Password"
-5. Monitor the processing status for each file
-6. Download the unlocked PDFs as a ZIP archive when processing completes
+1. Open `index.html` in a modern browser (or serve the folder over HTTP — see below).
+2. Choose one or more `.pdf` files.
+3. Enter the **open password** (leave blank if the password is empty).
+4. Click **Remove Password**.
+5. When processing finishes, use **Download PDF** (single success) or **Download All as ZIP** (multiple successes).
 
-## Running the Application
+## Running locally
 
-You can run the application locally using Python's built-in HTTP server:
+Serving over HTTP avoids some browsers’ restrictions on `file://` and matches how you would deploy the app:
 
-```
+```bash
 python3 -m http.server 8000
 ```
 
-Then visit http://localhost:8000 in your browser.
+Then open `http://localhost:8000` (or open `index.html` directly if your browser allows it).
 
-## Privacy
+## Requirements
 
-All processing happens directly in your web browser:
-- Your PDFs are never uploaded to any server
-- Your password stays private and is only used locally
-- The unlocked PDFs are generated entirely in your browser
+- A modern browser with JavaScript and WebAssembly enabled.
+- Network access the first time, so the CDN can load scripts and the QPDF `.wasm` file.
 
 ## Limitations
 
-- This approach converts PDF pages to images before placing them in a new PDF document
-- This preserves visual appearance but may lose:
-  - Text selection/copy functionality
-  - Form fields
-  - Hyperlinks
-  - Document structure
-- A single password is used for all files in batch processing
-
-## Python Version
-
-This project also includes a Python version (`remove_pdf_password.py`) which provides more complete PDF processing with full content preservation.
-
-## Requirements for Browser Version
-
-Any modern web browser with JavaScript enabled should work. No additional installation required.
+- You must **know the password**; the tool does not crack or guess passwords.
+- **One password per run** applies to all selected files (typical for a batch you locked with the same password).
+- **Encryption** must be something QPDF can handle; some rare or damaged PDFs may fail.
+- Very large PDFs may be slow or memory-heavy in the browser.
 
 ## License
 
