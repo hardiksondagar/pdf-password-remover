@@ -49,8 +49,7 @@
     </script>
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@neslinesli93/qpdf-wasm@0.3.0/dist/qpdf.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
@@ -125,8 +124,8 @@
                         </div>
                     </div>
 
-                    <a id="downloadBtn" href="#" download="unlocked_pdfs.zip" class="hidden mt-4 inline-block w-full text-center bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
-                        Download All as ZIP
+                    <a id="downloadBtn" href="#" download="unlocked.pdf" class="hidden mt-4 inline-block w-full text-center bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
+                        Download
                     </a>
 
                     <div id="status" class="hidden mt-4 p-3 rounded-md"></div>
@@ -195,8 +194,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Set up PDF.js worker
-            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.worker.min.js';
+            const createQpdfModule = window.Module;
 
             const pdfFileInput = document.getElementById('pdfFile');
             const passwordInput = document.getElementById('password');
@@ -218,6 +216,32 @@
             let successfulFiles = 0;
             let failedFiles = 0;
             let zip = null;
+            let qpdfModulePromise = null;
+
+            const QPDF_WASM_URL = 'https://cdn.jsdelivr.net/npm/@neslinesli93/qpdf-wasm@0.3.0/dist/qpdf.wasm';
+
+            function revokeDownloadObjectUrl() {
+                const href = downloadBtn.getAttribute('href');
+                if (href && href.indexOf('blob:') === 0) {
+                    URL.revokeObjectURL(href);
+                }
+                downloadBtn.setAttribute('href', '#');
+            }
+
+            function getQpdfModule() {
+                if (!qpdfModulePromise) {
+                    if (typeof createQpdfModule !== 'function') {
+                        return Promise.reject(new Error('QPDF engine failed to load. Check your network connection and refresh the page.'));
+                    }
+                    qpdfModulePromise = createQpdfModule({
+                        locateFile: function(path) {
+                            return path.endsWith('.wasm') ? QPDF_WASM_URL : path;
+                        },
+                        noInitialRun: true
+                    });
+                }
+                return qpdfModulePromise;
+            }
 
             processBtn.addEventListener('click', async function() {
                 const files = pdfFileInput.files;
@@ -227,10 +251,6 @@
                 }
 
                 const password = passwordInput.value;
-                if (!password) {
-                    showStatus('Please enter a password.', 'bg-red-100 text-red-700');
-                    return;
-                }
 
                 // Reset counters and status
                 totalFiles = files.length;
@@ -241,6 +261,8 @@
                 successCount.textContent = '0';
                 failCount.textContent = '0';
                 totalCount.textContent = totalFiles;
+
+                revokeDownloadObjectUrl();
 
                 // Create new ZIP file
                 zip = new JSZip();
@@ -254,6 +276,19 @@
                 processBtn.classList.add('opacity-50', 'cursor-not-allowed');
                 updateProgress(0);
 
+                try {
+                    showStatus('Loading decryption engine (one-time)...', 'bg-blue-100 text-blue-700');
+                    await getQpdfModule();
+                } catch (e) {
+                    showStatus('Could not load the PDF engine: ' + (e && e.message ? e.message : String(e)), 'bg-red-100 text-red-700');
+                    progressContainer.classList.add('hidden');
+                    processBtn.disabled = false;
+                    processBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    return;
+                }
+
+                showStatus(`Processing ${totalFiles} PDF files...`, 'bg-blue-100 text-blue-700');
+
                 // Process each file
                 for (let i = 0; i < files.length; i++) {
                     const file = files[i];
@@ -262,10 +297,23 @@
 
                 // When all files are processed
                 if (successfulFiles > 0) {
-                    // Generate the ZIP file
-                    const zipBlob = await zip.generateAsync({type: 'blob'});
-                    const url = URL.createObjectURL(zipBlob);
-                    downloadBtn.href = url;
+                    if (successfulFiles === 1) {
+                        const entryNames = Object.keys(zip.files).filter(function(name) {
+                            return !zip.files[name].dir;
+                        });
+                        const singleName = entryNames[0];
+                        const singleBlob = await zip.file(singleName).async('blob');
+                        const singleUrl = URL.createObjectURL(singleBlob);
+                        downloadBtn.href = singleUrl;
+                        downloadBtn.download = singleName;
+                        downloadBtn.textContent = 'Download PDF';
+                    } else {
+                        const zipBlob = await zip.generateAsync({type: 'blob'});
+                        const zipUrl = URL.createObjectURL(zipBlob);
+                        downloadBtn.href = zipUrl;
+                        downloadBtn.download = 'unlocked_pdfs.zip';
+                        downloadBtn.textContent = 'Download All as ZIP';
+                    }
                     downloadBtn.classList.remove('hidden');
 
                     showStatus(`Processing complete. ${successfulFiles} of ${totalFiles} files unlocked successfully.`,
@@ -306,71 +354,33 @@
                 scrollStatusListToBottom();
 
                 try {
-                    // Read the file
                     const arrayBuffer = await readFileAsArrayBuffer(file);
+                    const qpdf = await getQpdfModule();
 
-                    // Load the PDF document with password
-                    const loadingTask = pdfjsLib.getDocument({
-                        data: arrayBuffer,
-                        password: password
-                    });
-
-                    // Update status to decrypting
                     updateStatus(statusItem, 'Decrypting', 'blue');
 
-                    // Try to load the document with the password
-                    const pdfDoc = await loadingTask.promise;
+                    const inPath = '/qpdf_in.pdf';
+                    const outPath = '/qpdf_out.pdf';
+                    qpdf.FS.writeFile(inPath, new Uint8Array(arrayBuffer));
+                    try {
+                        qpdf.FS.unlink(outPath);
+                    } catch (ignore) {}
 
-                    // Update status to creating unencrypted copy
-                    updateStatus(statusItem, 'Creating copy', 'blue');
+                    qpdf.callMain([
+                        '--password=' + password,
+                        '--decrypt',
+                        inPath,
+                        outPath
+                    ]);
 
-                    // Create a new PDF document without encryption
-                    const { PDFDocument } = PDFLib;
-                    const newPdfDoc = await PDFDocument.create();
+                    const pdfBytes = qpdf.FS.readFile(outPath);
+                    try {
+                        qpdf.FS.unlink(inPath);
+                        qpdf.FS.unlink(outPath);
+                    } catch (ignore) {}
 
-                    // Copy each page from the encrypted document
-                    const numPages = pdfDoc.numPages;
-
-                    for (let i = 0; i < numPages; i++) {
-                        const page = await pdfDoc.getPage(i + 1);
-                        const viewport = page.getViewport({ scale: 1.0 });
-
-                        // Create a new page with the same dimensions
-                        const newPage = newPdfDoc.addPage([viewport.width, viewport.height]);
-
-                        // Create a canvas to render the page
-                        const canvas = document.createElement('canvas');
-                        const context = canvas.getContext('2d');
-                        canvas.width = viewport.width;
-                        canvas.height = viewport.height;
-
-                        // Render the page to the canvas
-                        await page.render({
-                            canvasContext: context,
-                            viewport: viewport
-                        }).promise;
-
-                        // Get the image data from the canvas
-                        const imgData = canvas.toDataURL('image/png');
-
-                        // Embed the image in the new PDF
-                        const pngImage = await newPdfDoc.embedPng(imgData);
-                        const { width, height } = newPage.getSize();
-
-                        // Draw the image onto the page
-                        newPage.drawImage(pngImage, {
-                            x: 0,
-                            y: 0,
-                            width: width,
-                            height: height,
-                        });
-                    }
-
-                    // Save the PDF to a Uint8Array
-                    const pdfBytes = await newPdfDoc.save();
-
-                    // Add the unlocked PDF to the ZIP file
-                    const fileName = file.name.replace('.pdf', '') + '_unlocked.pdf';
+                    const baseName = file.name.replace(/\.pdf$/i, '');
+                    const fileName = baseName + '_unlocked.pdf';
                     zip.file(fileName, pdfBytes);
 
                     // Update the status item to show success
@@ -385,9 +395,19 @@
                 } catch (error) {
                     console.error(`Error processing ${file.name}:`, error);
 
+                    try {
+                        const qpdf = await getQpdfModule();
+                        ['/qpdf_in.pdf', '/qpdf_out.pdf'].forEach(function(p) {
+                            try {
+                                qpdf.FS.unlink(p);
+                            } catch (ignore) {}
+                        });
+                    } catch (ignore) {}
+
                     // Update the status item to show failure
                     let errorMsg = 'Failed';
-                    if (error.message && error.message.includes('Invalid password')) {
+                    const errText = String(error && error.message !== undefined ? error.message : error);
+                    if (/password|Password|incorrect key/i.test(errText)) {
                         errorMsg = 'Wrong password';
                     }
 
